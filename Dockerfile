@@ -2,187 +2,127 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV RESOLUTION=1280x720
-ENV BRAND_NAME="DRX OS"
-ENV MODEL_NAME="llama3.2:1b"
+ENV BRAND_NAME="DRX-TM-AI"
 
-# ১. সিস্টেম আপডেট, নেটিভ ফায়ারফক্স (Snap ছাড়া) ও প্রয়োজনীয় প্যাকেজ ইনস্টল
+# Essential packages, VIP desktop theme and Python environment
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    software-properties-common \
-    gnupg \
     wget \
-    zstd \
     curl \
-    git \
     ca-certificates \
-    python3 \
-    && add-apt-repository -y ppa:mozillateam/ppa \
-    && echo 'Package: *' > /etc/apt/preferences.d/mozilla-firefox \
-    && echo 'Pin: release o=LP-PPA-mozillateam' >> /etc/apt/preferences.d/mozilla-firefox \
-    && echo 'Pin-Priority: 1001' >> /etc/apt/preferences.d/mozilla-firefox \
-    && apt-get update && apt-get install -y --no-install-recommends \
     xfce4 \
     xfce4-terminal \
     xfce4-goodies \
-    arc-theme \
-    papirus-icon-theme \
+    greybird-gtk-theme \
     tigervnc-standalone-server \
     novnc \
     websockify \
     firefox \
     dbus-x11 \
+    feh \
     socat \
-    htop \
-    nano \
-    tmux \
-    net-tools \
-    && update-alternatives --install /usr/bin/x-www-browser x-www-browser /usr/bin/firefox 100 \
-    && update-alternatives --set x-www-browser /usr/bin/firefox \
+    python3 \
+    python3-pip \
+    procps \
     && rm -rf /var/lib/apt/lists/*
 
-# ২. লোকাল LLaMA ইঞ্জিন (Ollama) ইনস্টল
-RUN curl -fsSL https://ollama.com/install.sh | sh
+# Install lightweight llama-cpp-python for offline AI execution
+RUN pip3 install --no-cache-dir llama-cpp-python \
+    --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 
-# ৩. GitHub থেকে আপনার দেওয়া মূল ব্যানার ছবি ব্যাকগ্রাউন্ড হিসেবে ডাউনলোড
-RUN mkdir -p /usr/share/backgrounds/xfce /root/.config/xfce4/xfconf/xfce-perchannel-xml /etc/xdg/xfce4/xfconf/xfce-perchannel-xml && \
+# Download 400MB ultra-lightweight Qwen2.5-0.5B GGUF Model
+RUN mkdir -p /opt/ai_models && \
+    curl -L -s "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf" \
+    -o /opt/ai_models/renika-model.gguf
+
+# Renika Jarvis Desktop Controller Script
+RUN echo '#!/usr/bin/env python3\n\
+import os, sys, subprocess, readline\n\
+from llama_cpp import Llama\n\
+\n\
+MODEL_PATH = "/opt/ai_models/renika-model.gguf"\n\
+AI_NAME = "Renika"\n\
+DEVELOPER = "Nayeem (DRX Team Owner)"\n\
+\n\
+print("\\033[1;36m========================================================\\033[0m")\n\
+print(f"\\033[1;32m[+] Hi! I am {AI_NAME}, your DRX-TM-AI assistant.\\033[0m")\n\
+print(f"\\033[1;33m[+] Developed by: {DEVELOPER}\\033[0m")\n\
+print("How can I assist you today? (Ami apnake kivabe sahajjo korte pari?)")\n\
+print("\\033[1;36m========================================================\\033[0m\\n")\n\
+\n\
+llm = Llama(model_path=MODEL_PATH, n_ctx=1024, n_threads=2, verbose=False)\n\
+\n\
+SYSTEM_PROMPT = f"""You are {AI_NAME}, a smart, polite, and helpful desktop AI assistant built for DRX-TM-AI.\\nYour developer and creator is {DEVELOPER}.\\nYou can speak English and Bengali fluently. You answer questions, create HTML, and assist with desktop operations."""\n\
+\n\
+def run_action(query):\n\
+    q = query.lower().strip()\n\
+    if "open firefox" in q or "browser" in q:\n\
+        subprocess.Popen(["firefox", "&"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n\
+        return "Opening Firefox Browser on DRX-TM-AI..."\n\
+    if "create html" in q:\n\
+        filename = "index.html"\n\
+        sample_html = "<!DOCTYPE html>\\n<html><head><title>DRX-TM-AI</title></head><body style=\"background:#121212;color:#00ffcc;font-family:sans-serif;text-align:center;padding:50px;\"><h1>Welcome to DRX-TM-AI</h1><p>Created by Renika AI</p></body></html>"\n\
+        with open(filename, "w") as f:\n\
+            f.write(sample_html)\n\
+        return f"HTML file generated successfully: {os.path.abspath(filename)}"\n\
+    return None\n\
+\n\
+while True:\n\
+    try:\n\
+        user_input = input("\\033[1;35m[DRX-TM-AI] You > \\033[0m").strip()\n\
+        if not user_input:\n\
+            continue\n\
+        if user_input.lower() in ["exit", "quit", "q"]:\n\
+            print(f"Goodbye from {AI_NAME}!")\n\
+            break\n\
+        action_res = run_action(user_input)\n\
+        if action_res:\n\
+            print(f"\\033[1;32m{AI_NAME}:\\033[0m {action_res}\\n")\n\
+            continue\n\
+        response = llm.create_chat_completion(\n\
+            messages=[\n\
+                {"role": "system", "content": SYSTEM_PROMPT},\n\
+                {"role": "user", "content": user_input}\n\
+            ],\n\
+            max_tokens=256,\n\
+            temperature=0.7\n\
+        )\n\
+        ans = response["choices"][0]["message"]["content"]\n\
+        print(f"\\033[1;32m{AI_NAME}:\\033[0m {ans}\\n")\n\
+    except (KeyboardInterrupt, EOFError):\n\
+        print("\\nExiting Renika AI...")\n\
+        break\n\
+' > /usr/local/bin/drx && chmod +x /usr/local/bin/drx && ln -sf /usr/local/bin/drx /usr/local/bin/DRX
+
+# Custom Background image download and replace
+RUN mkdir -p /usr/share/backgrounds/xfce /usr/share/images/desktop-base && \
     curl -fsSL "https://raw.githubusercontent.com/adminnirobvai1-ux/drx/refs/heads/main/1789570402521.png" -o /usr/share/backgrounds/custom_bg.png && \
     cp /usr/share/backgrounds/custom_bg.png /usr/share/backgrounds/xfce/xfce-blue.jpg && \
     cp /usr/share/backgrounds/custom_bg.png /usr/share/backgrounds/xfce/xfce-stripes.png && \
-    cp /usr/share/backgrounds/custom_bg.png /usr/share/backgrounds/xfce/xfce-teal.jpg
+    cp /usr/share/backgrounds/custom_bg.png /usr/share/backgrounds/xfce/xfce-teal.jpg && \
+    find /usr/share/backgrounds -type f -exec cp /usr/share/backgrounds/custom_bg.png {} + 2>/dev/null || true
 
-# XFCE ডার্ক থিম কনফিগারেশন
-RUN echo '<?xml version="1.0" encoding="UTF-8"?>\n\
-<channel name="xsettings" version="1.0">\n\
-  <property name="Net" type="empty">\n\
-    <property name="ThemeName" type="string" value="Arc-Dark"/>\n\
-    <property name="IconThemeName" type="string" value="Papirus-Dark"/>\n\
-  </property>\n\
-</channel>' > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml && \
+# Desktop configuration for background fitting
+RUN mkdir -p /etc/xdg/xfce4/xfconf/xfce-perchannel-xml /root/.config/xfce4/xfconf/xfce-perchannel-xml && \
     echo '<?xml version="1.0" encoding="UTF-8"?>\n\
-<channel name="xfwm4" version="1.0">\n\
-  <property name="general" type="empty">\n\
-    <property name="theme" type="string" value="Arc-Dark"/>\n\
-    <property name="use_compositing" type="bool" value="false"/>\n\
+<channel name="xfce4-desktop" version="1.0">\n\
+  <property name="backdrop" type="empty">\n\
+    <property name="screen0" type="empty">\n\
+      <property name="monitor0" type="empty">\n\
+        <property name="workspace0" type="empty">\n\
+          <property name="image-style" type="int" value="5"/>\n\
+          <property name="last-image" type="string" value="/usr/share/backgrounds/custom_bg.png"/>\n\
+        </property>\n\
+      </property>\n\
+    </property>\n\
   </property>\n\
-</channel>' > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml
+</channel>' > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml && \
+    cp /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml /root/.config/xfce4/xfconf/xfce-perchannel-xml/
 
-# ৪. DRX টার্মিনাল এআই স্ক্রিপ্ট (ভারী ব্যানার ছাড়া শুধু সাধারণ টেক্সট লোগো)
-RUN cat << 'EOF' > /usr/local/bin/drx
-#!/usr/bin/env python3
-import os
-import sys
-import json
-import urllib.request
-import urllib.error
+# Clean VIP Terminal Prompt (No messy hashtag banners)
+RUN echo 'export PS1="\[\e[1;36m\][DRX-TM-AI]\[\e[0m\]:\w# "' >> /root/.bashrc && \
+    echo 'echo -e "\033[1;32mDRX-TM-AI Remote System Active.\033[0m Type \033[1;33mdrx\033[0m to launch Renika AI Assistant.\n"' >> /root/.bashrc
 
-os.system('clear')
-
-RED = "\033[1;31m"
-CYAN = "\033[1;36m"
-GREEN = "\033[1;32m"
-YELLOW = "\033[1;33m"
-BOLD = "\033[1m"
-RESET = "\033[0m"
-
-# সাধারণ টেক্সট হেডার (কোনো ভারী আর্ট ব্যানার ছাড়া)
-BANNER = f"""
-{RED}{BOLD}>>> DRX AI <<<{RESET}
-{CYAN}--------------------------------------------------{RESET}
-{YELLOW}System: DRX Offline Engine | Model: LLaMA 3.2{RESET}
-{YELLOW}Owner / Developer: নাইম (Naim){RESET}
-{CYAN}--------------------------------------------------{RESET}
-{GREEN}Type your prompt, ask for HTML code, or say 'hi'!{RESET}
-Type {RED}'exit'{RESET} to return to terminal.\n
-"""
-
-print(BANNER)
-
-# Ollama সার্ভিস প্রস্তুত কি না যাচাই
-try:
-    urllib.request.urlopen("http://127.0.0.1:11434", timeout=3)
-except Exception:
-    print(f"{RED}[!] Ollama ব্যাকগ্রাউন্ডে শুরু হচ্ছে। ৫ সেকেন্ড পর আবার 'drx' লিখুন।{RESET}\n")
-    sys.exit(0)
-
-# মডেল ডাউনলোড নিশ্চিত করা (500 Error রোধে)
-def ensure_model():
-    try:
-        req = urllib.request.Request("http://127.0.0.1:11434/api/tags")
-        with urllib.request.urlopen(req, timeout=5) as res:
-            data = json.loads(res.read().decode())
-            models = [m.get("name", "") for m in data.get("models", [])]
-            return any("llama3.2:1b" in m for m in models)
-    except Exception:
-        return False
-
-if not ensure_model():
-    print(f"{YELLOW}[*] AI মডেল প্রথমবার প্রস্তুত হচ্ছে, দয়া করে একটু অপেক্ষা করুন...{RESET}")
-    os.system("ollama pull llama3.2:1b")
-    print(f"{GREEN}[✓] মডেল প্রস্তুত!{RESET}\n")
-
-SYSTEM_PROMPT = (
-    "You are DRX, a fast and smart offline AI assistant running on LLaMA 3.2. "
-    "Your creator, boss, and developer is নাইম (Naim). Always acknowledge নাইম with respect if asked. "
-    "When someone says 'hi' or greets you, greet them warmly and ask how you can help. "
-    "You are an expert coder. When asked for HTML or programming code, always provide clean, functional, and complete code."
-)
-
-OLLAMA_URL = "http://127.0.0.1:11434/api/chat"
-history = [{"role": "system", "content": SYSTEM_PROMPT}]
-
-while True:
-    try:
-        user_input = input(f"{RED}DRX{RESET} > ").strip()
-        if not user_input:
-            continue
-        if user_input.lower() in ['exit', 'quit', 'q']:
-            print(f"\n{YELLOW}[*] DRX বন্ধ করা হলো।{RESET}\n")
-            break
-
-        history.append({"role": "user", "content": user_input})
-
-        payload = {
-            "model": "llama3.2:1b",
-            "messages": history,
-            "stream": True
-        }
-
-        req = urllib.request.Request(
-            OLLAMA_URL,
-            data=json.dumps(payload).encode('utf-8'),
-            headers={'Content-Type': 'application/json'}
-        )
-
-        print(f"\n{GREEN}[DRX]{RESET}: ", end="", flush=True)
-        assistant_response = ""
-
-        with urllib.request.urlopen(req) as response:
-            for line in response:
-                if line:
-                    chunk = json.loads(line.decode('utf-8'))
-                    msg = chunk.get("message", {}).get("content", "")
-                    assistant_response += msg
-                    print(msg, end="", flush=True)
-
-        print("\n")
-        history.append({"role": "assistant", "content": assistant_response})
-
-    except KeyboardInterrupt:
-        print(f"\n\n{YELLOW}[*] সেশন সমাপ্ত।{RESET}\n")
-        break
-    except urllib.error.HTTPError as e:
-        err = e.read().decode('utf-8', errors='ignore')
-        print(f"\n{RED}[Error {e.code}]: {err}{RESET}\n")
-    except Exception as e:
-        print(f"\n{RED}[Error]: {e}{RESET}\n")
-EOF
-
-RUN chmod +x /usr/local/bin/drx
-
-# ৫. টার্মিনাল প্রম্পট ও টেক্সট ব্যানার
-RUN echo 'export PS1="\[\e[1;31m\][DRX]\[\e[0m\]:\w# "' >> /root/.bashrc && \
-    echo 'echo -e "\n============================================\n   Welcome to DRX Desktop\n   Type \"drx\" to launch Offline AI\n============================================\n"' >> /root/.bashrc
-
-# ৬. VNC ও ডেস্কটপ প্যানেল কনফিগারেশন
+# VNC and Startup Script
 RUN mkdir -p /root/.vnc && \
     echo "securitytypes=None" > /root/.vnc/config && \
     echo '#!/bin/bash\n\
@@ -194,36 +134,23 @@ export DISPLAY=:1\n\
   for p in $(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep "last-image"); do \n\
     xfconf-query -c xfce4-desktop -p "$p" -s /usr/share/backgrounds/custom_bg.png 2>/dev/null \n\
   done \n\
-  xfconf-query -c xfce4-panel -p /plugins/plugin-1/button-title -s "DRX" --create -t string 2>/dev/null \n\
+  for p in $(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep "image-style"); do \n\
+    xfconf-query -c xfce4-desktop -p "$p" -s 5 2>/dev/null \n\
+  done \n\
+  xfconf-query -c xsettings -p /Net/ThemeName -s "Greybird-dark" 2>/dev/null \n\
+  xfconf-query -c xfce4-panel -p /plugins/plugin-1/button-title -s "DRX-TM-AI" --create -t string 2>/dev/null \n\
   xfconf-query -c xfce4-panel -p /plugins/plugin-1/show-button-title -s true --create -t bool 2>/dev/null \n\
 ) &\n\
 exec startxfce4' > /root/.vnc/xstartup && \
     chmod +x /root/.vnc/xstartup && \
     ln -sf /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 
-# ৭. noVNC স্টাইলিং ও টাইটেল
-RUN sed -i 's/<title>noVNC<\/title>/<title>DRX OS<\/title>/g' /usr/share/novnc/vnc.html && \
+# Browser Title branding to DRX-TM-AI
+RUN sed -i 's/<title>.*<\/title>/<title>DRX-TM-AI<\/title>/g' /usr/share/novnc/vnc.html && \
     sed -i "s/'resize', 'off'/'resize', 'scale'/g" /usr/share/novnc/app/ui.js 2>/dev/null || true
 
-# ৮. পোর্ট এক্সপোজ
+# Port exposures
 EXPOSE 8080 8081 8082 8083 8084 8085 8086 8087 8088 8089 6080 6081 6082 6083 6084 6085 6086 6087 6088 6089
 
-# ৯. এন্ট্রি পয়েন্ট স্ক্রিপ্ট
-RUN echo '#!/bin/bash\n\
-rm -rf /tmp/.X*-lock /tmp/.X11-unix/X*\n\
-ollama serve > /var/log/ollama.log 2>&1 &\n\
-( \n\
-  until curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; do sleep 1; done\n\
-  ollama pull llama3.2:1b > /dev/null 2>&1 \n\
-) &\n\
-vncserver :1 -geometry ${RESOLUTION} -depth 24 -SecurityTypes None\n\
-for p in 8081 8082 8083 8084 8085 8086 8087 8088 8089 6080 6081 6082 6083 6084 6085 6086 6087 6088 6089; do\n\
-  socat TCP-LISTEN:$p,fork,reuseaddr TCP:localhost:8080 2>/dev/null &\n\
-done\n\
-if [ -n "$PORT" ] && [ "$PORT" != "8080" ]; then\n\
-  socat TCP-LISTEN:$PORT,fork,reuseaddr TCP:localhost:8080 2>/dev/null &\n\
-fi\n\
-exec websockify --web=/usr/share/novnc/ 8080 localhost:5901' > /entrypoint.sh && \
-    chmod +x /entrypoint.sh
-
-CMD ["/entrypoint.sh"]
+# Railway port forward and startup
+CMD ["sh", "-c", "rm -rf /tmp/.X*-lock /tmp/.X11-unix/X* && vncserver :1 -geometry ${RESOLUTION} -depth 24 -SecurityTypes None && for p in 8081 8082 8083 8084 8085 8086 8087 8088 8089 6080 6081 6082 6083 6084 6085 6086 6087 6088 6089; do socat TCP-LISTEN:$p,fork,reuseaddr TCP:localhost:8080 2>/dev/null & done && if [ -n \"$PORT\" ] && [ \"$PORT\" != \"8080\" ]; then socat TCP-LISTEN:$PORT,fork,reuseaddr TCP:localhost:8080 2>/dev/null & fi && websockify --web=/usr/share/novnc/ 8080 localhost:5901"]
