@@ -9,6 +9,7 @@ ENV MODEL_NAME="llama3.2:1b"
 RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
     wget \
+    zstd \
     curl \
     git \
     ca-certificates \
