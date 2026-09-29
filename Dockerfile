@@ -2,7 +2,7 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# ১. সিস্টেম টুলস, Nginx, PHP 8.1, Python 3 এবং সুপারভাইজর ইনস্টল
+# ১. সিস্টেম ডিপেনডেন্সি, Nginx, PHP 8.1, Python 3 এবং সুপারভাইজর ইনস্টল
 RUN apt-get update && apt-get install -y \
     nginx \
     php8.1-fpm \
@@ -22,26 +22,26 @@ RUN apt-get update && apt-get install -y \
     nano \
     && rm -rf /var/lib/apt/lists/*
 
-# ২. ওয়েব টার্মিনাল বাইনারি (ttyd) ডাউনলোড
+# ২. ওয়েব টার্মিনাল বাইনারি (ttyd) সংগ্রহ
 RUN curl -sLk https://github.com/tsl0922/ttyd/releases/download/1.7.4/ttyd.x86_64 -o /usr/local/bin/ttyd \
     && chmod +x /usr/local/bin/ttyd
 
-# ৩. প্রয়োজনীয় ডিরেক্টরি প্রস্তুত করা
+# ৩. ফোল্ডার স্ট্রাকচার প্রস্তুতকরণ
 RUN mkdir -p /var/www/html/admin /var/log/supervisor /run/php
 
 # ৪. TinyFileManager অ্যাডমিন প্যানেল ডাউনলোড
 RUN curl -sLk https://raw.githubusercontent.com/prasathmani/tinyfilemanager/master/tinyfilemanager.php -o /var/www/html/admin/index.php
 
-# ৫. Nginx সার্ভার ব্লক কনফিগারেশন তৈরি
+# ৫. Nginx সার্ভার ব্লক কনফিগারেশন তৈরি (পোর্ট ৮০৮০ / ডাইনামিক পোর্ট)
 RUN echo 'server {' > /etc/nginx/sites-available/default && \
     echo '    listen __PORT__ default_server;' >> /etc/nginx/sites-available/default && \
     echo '    listen [::]:__PORT__ default_server;' >> /etc/nginx/sites-available/default && \
     echo '    root /var/www/html;' >> /etc/nginx/sites-available/default && \
-    echo '    index index.php index.html;' >> /etc/nginx/sites-available/default && \
+    echo '    index index.html index.php;' >> /etc/nginx/sites-available/default && \
     echo '    server_name _;' >> /etc/nginx/sites-available/default && \
     echo '    client_max_body_size 512M;' >> /etc/nginx/sites-available/default && \
     echo '    location / {' >> /etc/nginx/sites-available/default && \
-    echo '        try_files $uri $uri/ /index.php?$query_string;' >> /etc/nginx/sites-available/default && \
+    echo '        try_files $uri$uri/ /index.html;' >> /etc/nginx/sites-available/default && \
     echo '    }' >> /etc/nginx/sites-available/default && \
     echo '    location ~ \.php$ {' >> /etc/nginx/sites-available/default && \
     echo '        include snippets/fastcgi-php.conf;' >> /etc/nginx/sites-available/default && \
@@ -60,7 +60,7 @@ RUN echo 'server {' > /etc/nginx/sites-available/default && \
     echo '    location ~ /\.ht { deny all; }' >> /etc/nginx/sites-available/default && \
     echo '}' >> /etc/nginx/sites-available/default
 
-# ৬. সুপারভাইজর কনফিগারেশন তৈরি (PHP, Nginx ও Terminal ব্যাকগ্রাউন্ড প্রসেস)
+# ৬. সুপারভাইজর কনফিগারেশন তৈরি
 RUN echo '[supervisord]' > /etc/supervisor/conf.d/supervisord.conf && \
     echo 'nodaemon=true' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'user=root' >> /etc/supervisor/conf.d/supervisord.conf && \
@@ -77,110 +77,131 @@ RUN echo '[supervisord]' > /etc/supervisor/conf.d/supervisord.conf && \
     echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'autorestart=true' >> /etc/supervisor/conf.d/supervisord.conf
 
-# ৭. মোবাইল-অপ্টিমাইজড ড্যাশবোর্ড + রেনিকা এআই কোর (index.html)
+# ৭. লোকাল এআই ইন্টারফেস তৈরি (কোড কপি + ভয়েস স্পিচ প্লেয়ার সংযুক্ত)
 RUN echo '<!DOCTYPE html>' > /var/www/html/index.html && \
-    echo '<html lang="en">' >> /var/www/html/index.html && \
+    echo '<html lang="bn">' >> /var/www/html/index.html && \
     echo '<head>' >> /var/www/html/index.html && \
     echo '  <meta charset="UTF-8">' >> /var/www/html/index.html && \
     echo '  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">' >> /var/www/html/index.html && \
-    echo '  <title>DRX Nexus Cloud OS</title>' >> /var/www/html/index.html && \
-    echo '  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">' >> /var/www/html/index.html && \
+    echo '  <title>Nexus Local AI Console</title>' >> /var/www/html/index.html && \
+    echo '  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">' >> /var/www/html/index.html && \
     echo '  <style>' >> /var/www/html/index.html && \
-    echo '    :root { --bg: #07090e; --surface: rgba(17, 24, 39, 0.75); --border: rgba(255, 255, 255, 0.08); --cyan: #00f5d4; --violet: #7928ca; --text: #f8fafc; --muted: #94a3b8; }' >> /var/www/html/index.html && \
+    echo '    :root { --bg: #090b10; --card: #111622; --border: #1f293d; --accent: #00f0ff; --accent-glow: rgba(0,240,255,0.15); --text: #f1f5f9; --text-dim: #94a3b8; }' >> /var/www/html/index.html && \
     echo '    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }' >> /var/www/html/index.html && \
-    echo '    body { font-family: "Space Grotesk", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; justify-content: center; padding: 16px; background-image: radial-gradient(circle at 10% 10%, rgba(0,245,212,0.08) 0%, transparent 40%), radial-gradient(circle at 90% 90%, rgba(121,40,202,0.12) 0%, transparent 45%); }' >> /var/www/html/index.html && \
-    echo '    .wrap { width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: 16px; }' >> /var/www/html/index.html && \
-    echo '    .nav { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; backdrop-filter: blur(12px); }' >> /var/www/html/index.html && \
-    echo '    .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; color: #fff; }' >> /var/www/html/index.html && \
-    echo '    .brand svg { width: 22px; height: 22px; color: var(--cyan); }' >> /var/www/html/index.html && \
-    echo '    .badge { display: flex; align-items: center; gap: 6px; font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--cyan); background: rgba(0,245,212,0.1); border: 1px solid rgba(0,245,212,0.3); padding: 4px 10px; border-radius: 20px; }' >> /var/www/html/index.html && \
-    echo '    .dot { width: 6px; height: 6px; background: var(--cyan); border-radius: 50%; box-shadow: 0 0 8px var(--cyan); }' >> /var/www/html/index.html && \
-    echo '    .cards { display: flex; flex-direction: column; gap: 12px; }' >> /var/www/html/index.html && \
-    echo '    .card { display: flex; align-items: center; gap: 14px; padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; text-decoration: none; color: inherit; backdrop-filter: blur(12px); transition: 0.2s; }' >> /var/www/html/index.html && \
-    echo '    .card:active { transform: scale(0.98); border-color: var(--cyan); }' >> /var/www/html/index.html && \
-    echo '    .icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.03); border: 1px solid var(--border); }' >> /var/www/html/index.html && \
-    echo '    .icon svg { width: 22px; height: 22px; }' >> /var/www/html/index.html && \
-    echo '    .meta { flex: 1; }' >> /var/www/html/index.html && \
-    echo '    .meta h3 { font-size: 15px; font-weight: 600; margin-bottom: 2px; }' >> /var/www/html/index.html && \
-    echo '    .meta p { font-size: 12px; color: var(--muted); }' >> /var/www/html/index.html && \
-    echo '    .ai-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }' >> /var/www/html/index.html && \
-    echo '    .ai-head { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid var(--border); }' >> /var/www/html/index.html && \
-    echo '    .ai-head svg { width: 18px; height: 18px; color: var(--cyan); }' >> /var/www/html/index.html && \
-    echo '    .ai-tag { font-family: "JetBrains Mono", monospace; font-size: 10px; color: var(--violet); background: rgba(121,40,202,0.15); padding: 2px 6px; border-radius: 4px; }' >> /var/www/html/index.html && \
-    echo '    .chat { height: 130px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 12px; }' >> /var/www/html/index.html && \
-    echo '    .msg { padding: 8px 12px; border-radius: 10px; max-width: 85%; line-height: 1.4; }' >> /var/www/html/index.html && \
-    echo '    .msg.bot { background: rgba(255,255,255,0.05); align-self: flex-start; }' >> /var/www/html/index.html && \
-    echo '    .msg.user { background: rgba(0,245,212,0.15); border: 1px solid rgba(0,245,212,0.3); color: var(--cyan); align-self: flex-end; }' >> /var/www/html/index.html && \
-    echo '    .input-row { display: flex; gap: 8px; }' >> /var/www/html/index.html && \
-    echo '    .input-row input { flex: 1; background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 13px; color: #fff; outline: none; }' >> /var/www/html/index.html && \
-    echo '    .input-row input:focus { border-color: var(--cyan); }' >> /var/www/html/index.html && \
-    echo '    .input-row button { background: var(--cyan); border: none; border-radius: 10px; padding: 0 14px; cursor: pointer; font-weight: 700; color: #000; }' >> /var/www/html/index.html && \
-    echo '    .guide { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; font-size: 12px; line-height: 1.6; color: var(--muted); }' >> /var/www/html/index.html && \
-    echo '    .guide b { color: #fff; }' >> /var/www/html/index.html && \
-    echo '    .guide code { font-family: "JetBrains Mono", monospace; background: rgba(0,0,0,0.4); color: var(--cyan); padding: 2px 6px; border-radius: 4px; }' >> /var/www/html/index.html && \
-    echo '    .footer { text-align: center; font-size: 11px; font-family: "JetBrains Mono", monospace; color: #475569; margin-top: auto; padding: 8px 0; }' >> /var/www/html/index.html && \
+    echo '    body { font-family: "Plus Jakarta Sans", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; justify-content: center; padding: 12px; }' >> /var/www/html/index.html && \
+    echo '    .container { width: 100%; max-width: 520px; display: flex; flex-direction: column; height: calc(100vh - 24px); gap: 10px; }' >> /var/www/html/index.html && \
+    echo '    .header { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; }' >> /var/www/html/index.html && \
+    echo '    .logo { font-weight: 700; font-size: 15px; color: var(--accent); letter-spacing: 0.5px; }' >> /var/www/html/index.html && \
+    echo '    .links { display: flex; gap: 8px; }' >> /var/www/html/index.html && \
+    echo '    .link-btn { text-decoration: none; font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 8px; background: #1a2233; color: var(--text); border: 1px solid var(--border); }' >> /var/www/html/index.html && \
+    echo '    .chat-box { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 12px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; }' >> /var/www/html/index.html && \
+    echo '    .msg { display: flex; flex-direction: column; gap: 6px; max-width: 90%; font-size: 13px; line-height: 1.5; }' >> /var/www/html/index.html && \
+    echo '    .msg.user { align-self: flex-end; background: var(--accent-glow); border: 1px solid rgba(0,240,255,0.3); color: var(--accent); padding: 8px 12px; border-radius: 12px 12px 2px 12px; }' >> /var/www/html/index.html && \
+    echo '    .msg.bot { align-self: flex-start; background: #161d2b; border: 1px solid var(--border); padding: 10px 12px; border-radius: 12px 12px 12px 2px; }' >> /var/www/html/index.html && \
+    echo '    .actions-row { display: flex; gap: 6px; margin-top: 4px; }' >> /var/www/html/index.html && \
+    echo '    .act-btn { background: #222c3d; border: none; color: var(--text-dim); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; }' >> /var/www/html/index.html && \
+    echo '    .act-btn:hover { color: var(--accent); }' >> /var/www/html/index.html && \
+    echo '    .code-block { background: #080a0f; border: 1px solid #2d3748; border-radius: 8px; margin: 6px 0; overflow: hidden; font-family: "JetBrains Mono", monospace; }' >> /var/www/html/index.html && \
+    echo '    .code-head { display: flex; justify-content: space-between; align-items: center; background: #131924; padding: 4px 10px; font-size: 11px; color: var(--text-dim); }' >> /var/www/html/index.html && \
+    echo '    .copy-btn { background: var(--accent); color: #000; border: none; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; cursor: pointer; }' >> /var/www/html/index.html && \
+    echo '    .code-block pre { padding: 10px; font-size: 12px; overflow-x: auto; color: #38bdf8; white-space: pre-wrap; word-break: break-all; }' >> /var/www/html/index.html && \
+    echo '    .input-bar { display: flex; gap: 8px; padding-bottom: 4px; }' >> /var/www/html/index.html && \
+    echo '    .input-bar input { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; font-size: 13px; color: #fff; outline: none; }' >> /var/www/html/index.html && \
+    echo '    .input-bar button { background: var(--accent); border: none; border-radius: 12px; padding: 0 16px; font-weight: 700; color: #000; cursor: pointer; }' >> /var/www/html/index.html && \
     echo '  </style>' >> /var/www/html/index.html && \
     echo '</head>' >> /var/www/html/index.html && \
     echo '<body>' >> /var/www/html/index.html && \
-    echo '  <div class="wrap">' >> /var/www/html/index.html && \
-    echo '    <div class="nav">' >> /var/www/html/index.html && \
-    echo '      <div class="brand">' >> /var/www/html/index.html && \
-    echo '        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>' >> /var/www/html/index.html && \
-    echo '        <span>DRX CLOUD OS</span>' >> /var/www/html/index.html && \
-    echo '      </div>' >> /var/www/html/index.html && \
-    echo '      <div class="badge"><span class="dot"></span> ONLINE</div>' >> /var/www/html/index.html && \
-    echo '    </div>' >> /var/www/html/index.html && \
-    echo '    <div class="cards">' >> /var/www/html/index.html && \
-    echo '      <a href="/admin" class="card">' >> /var/www/html/index.html && \
-    echo '        <div class="icon" style="color:var(--cyan);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>' >> /var/www/html/index.html && \
-    echo '        <div class="meta"><h3>Storage & CPanel</h3><p>Upload ZIP, edit code & manage files</p></div>' >> /var/www/html/index.html && \
-    echo '      </a>' >> /var/www/html/index.html && \
-    echo '      <a href="/terminal" class="card">' >> /var/www/html/index.html && \
-    echo '        <div class="icon" style="color:var(--violet);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></div>' >> /var/www/html/index.html && \
-    echo '        <div class="meta"><h3>Web Terminal</h3><p>Root Shell • Python bots & Pip</p></div>' >> /var/www/html/index.html && \
-    echo '      </a>' >> /var/www/html/index.html && \
-    echo '    </div>' >> /var/www/html/index.html && \
-    echo '    <div class="ai-box">' >> /var/www/html/index.html && \
-    echo '      <div class="ai-head">' >> /var/www/html/index.html && \
-    echo '        <div style="display:flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg> RENIKA AI CORE</div>' >> /var/www/html/index.html && \
-    echo '        <span class="ai-tag">ACTIVE</span>' >> /var/www/html/index.html && \
-    echo '      </div>' >> /var/www/html/index.html && \
-    echo '      <div class="chat" id="chat"><div class="msg bot">System online! How can I assist you with your deployment?</div></div>' >> /var/www/html/index.html && \
-    echo '      <div class="input-row">' >> /var/www/html/index.html && \
-    echo '        <input type="text" id="aiIn" placeholder="Type a message (hi, bot, status)..." onkeydown="if(event.keyCode===13)sendMsg()">' >> /var/www/html/index.html && \
-    echo '        <button onclick="sendMsg()">Send</button>' >> /var/www/html/index.html && \
+    echo '  <div class="container">' >> /var/www/html/index.html && \
+    echo '    <div class="header">' >> /var/www/html/index.html && \
+    echo '      <div class="logo">⚡ NEXUS AI LOCAL</div>' >> /var/www/html/index.html && \
+    echo '      <div class="links">' >> /var/www/html/index.html && \
+    echo '        <a href="/admin" class="link-btn">Storage</a>' >> /var/www/html/index.html && \
+    echo '        <a href="/terminal" class="link-btn">Terminal</a>' >> /var/www/html/index.html && \
     echo '      </div>' >> /var/www/html/index.html && \
     echo '    </div>' >> /var/www/html/index.html && \
-    echo '    <div class="guide">' >> /var/www/html/index.html && \
-    echo '      <p>💡 <b>Host Sites:</b> Create folder in Storage (e.g. <code>app1</code>) & put <code>index.html</code>/<code>index.php</code>. Open at <code>/app1</code></p>' >> /var/www/html/index.html && \
-    echo '      <p style="margin-top:6px;">🤖 <b>24/7 Python Bot:</b> <code>nohup python3 bot.py &</code></p>' >> /var/www/html/index.html && \
+    echo '    <div class="chat-box" id="box">' >> /var/www/html/index.html && \
+    echo '      <div class="msg bot">' >> /var/www/html/index.html && \
+    echo '        <div class="text">আমি আপনার লোকাল সার্ভার এআই। কোনো এপিআই ছাড়া অফলাইনে কোড তৈরি, সাহায্য বা টেক্সট ভয়েসে পড়ে শোনানোর জন্য আমি প্রস্তুত।</div>' >> /var/www/html/index.html && \
+    echo '        <div class="actions-row">' >> /var/www/html/index.html && \
+    echo '          <button class="act-btn" onclick="speakMsg(this)">🔊 শুনুন</button>' >> /var/www/html/index.html && \
+    echo '          <button class="act-btn" onclick="copyMsg(this)">📋 কপি</button>' >> /var/www/html/index.html && \
+    echo '        </div>' >> /var/www/html/index.html && \
+    echo '      </div>' >> /var/www/html/index.html && \
     echo '    </div>' >> /var/www/html/index.html && \
-    echo '    <div class="footer">DRX NEXUS CLOUD • RAILWAY CONTAINER</div>' >> /var/www/html/index.html && \
+    echo '    <div class="input-bar">' >> /var/www/html/index.html && \
+    echo '      <input type="text" id="userInput" placeholder="মেসেজ বা কোড তৈরির অনুরোধ লিখুন..." onkeydown="if(event.key===\"Enter\")send()">' >> /var/www/html/index.html && \
+    echo '      <button onclick="send()">Send</button>' >> /var/www/html/index.html && \
+    echo '    </div>' >> /var/www/html/index.html && \
     echo '  </div>' >> /var/www/html/index.html && \
     echo '  <script>' >> /var/www/html/index.html && \
-    echo '    const chat=document.getElementById("chat"), inp=document.getElementById("aiIn");' >> /var/www/html/index.html && \
-    echo '    function sendMsg(){' >> /var/www/html/index.html && \
-    echo '      const t=inp.value.trim(); if(!t)return;' >> /var/www/html/index.html && \
-    echo '      addM("user",t); inp.value="";' >> /var/www/html/index.html && \
-    echo '      setTimeout(()=>{' >> /var/www/html/index.html && \
-    echo '        const q=t.toLowerCase();' >> /var/www/html/index.html && \
-    echo '        let r="I am Renika AI. You can manage files via Storage and run Python bots in Terminal.";' >> /var/www/html/index.html && \
-    echo '        if(q.includes("hi")||q.includes("hello")) r="Hello Commander! Renika Cloud Core is active and ready.";' >> /var/www/html/index.html && \
-    echo '        else if(q.includes("kemon")||q.includes("how are you")) r="All systems operational (100%). Ready for deployment.";' >> /var/www/html/index.html && \
-    echo '        else if(q.includes("bot")||q.includes("telegram")) r="To run a Telegram bot 24/7, open Terminal and run: nohup python3 bot.py &";' >> /var/www/html/index.html && \
-    echo '        else if(q.includes("host")||q.includes("site")) r="Make a folder in Storage (e.g. site1) with index.html. Access it at /site1";' >> /var/www/html/index.html && \
-    echo '        addM("bot",r);' >> /var/www/html/index.html && \
-    echo '      },300);' >> /var/www/html/index.html && \
+    echo '    const box = document.getElementById("box");' >> /var/www/html/index.html && \
+    echo '    const input = document.getElementById("userInput");' >> /var/www/html/index.html && \
+    echo '    function send() {' >> /var/www/html/index.html && \
+    echo '      const val = input.value.trim(); if (!val) return;' >> /var/www/html/index.html && \
+    echo '      renderUser(val); input.value = "";' >> /var/www/html/index.html && \
+    echo '      setTimeout(() => processAi(val), 350);' >> /var/www/html/index.html && \
     echo '    }' >> /var/www/html/index.html && \
-    echo '    function addM(cls,txt){' >> /var/www/html/index.html && \
-    echo '      const d=document.createElement("div"); d.className="msg "+cls; d.innerText=txt;' >> /var/www/html/index.html && \
-    echo '      chat.appendChild(d); chat.scrollTop=chat.scrollHeight;' >> /var/www/html/index.html && \
+    echo '    function renderUser(txt) {' >> /var/www/html/index.html && \
+    echo '      const div = document.createElement("div"); div.className = "msg user";' >> /var/www/html/index.html && \
+    echo '      div.innerText = txt; box.appendChild(div); box.scrollTop = box.scrollHeight;' >> /var/www/html/index.html && \
+    echo '    }' >> /var/www/html/index.html && \
+    echo '    function processAi(query) {' >> /var/www/html/index.html && \
+    echo '      const q = query.toLowerCase();' >> /var/www/html/index.html && \
+    echo '      let reply = "";' >> /var/www/html/index.html && \
+    echo '      let code = "";' >> /var/www/html/index.html && \
+    echo '      let lang = "code";' >> /var/www/html/index.html && \
+    echo '      if (q.includes("python") || q.includes("bot") || q.includes("টেলিগ্রাম")) {' >> /var/www/html/index.html && \
+    echo '        reply = "আপনার জন্য পাইথন টেলিগ্রাম বটের বেসিক কোড নিচে দেওয়া হলো:";' >> /var/www/html/index.html && \
+    echo '        lang = "python";' >> /var/www/html/index.html && \
+    echo '        code = "import telebot\n\nTOKEN = \"YOUR_BOT_TOKEN\"\nbot = telebot.TeleBot(TOKEN)\n\n@bot.message_handler(commands=[\x27start\x27])\ndef start(msg):\n    bot.reply_to(msg, \"বট সক্রিয় আছে!\")\n\nbot.infinity_polling()";' >> /var/www/html/index.html && \
+    echo '      } else if (q.includes("html") || q.includes("ওয়েবসাইট") || q.includes("site")) {' >> /var/www/html/index.html && \
+    echo '        reply = "এখানে একটি সুন্দর ডার্ক মোড HTML পেজের কোড দেওয়া হলো:";' >> /var/www/html/index.html && \
+    echo '        lang = "html";' >> /var/www/html/index.html && \
+    echo '        code = "<!DOCTYPE html>\n<html>\n<head><title>My App</title></head>\n<body style=\"background:#111;color:#fff;text-align:center;\">\n  <h1>স্বাগতম</h1>\n</body>\n</html>";' >> /var/www/html/index.html && \
+    echo '      } else if (q.includes("hi") || q.includes("hello") || q.includes("হ্যালো") || q.includes("হাই")) {' >> /var/www/html/index.html && \
+    echo '        reply = "হ্যালো! আমি লোকাল সিস্টেম এআই। আপনি যেকোনো কোড তৈরি বা কমান্ডের সাহায্য চাইতে পারেন।";' >> /var/www/html/index.html && \
+    echo '      } else if (q.includes("কেমন আছো") || q.includes("how are you")) {' >> /var/www/html/index.html && \
+    echo '        reply = "আমি সম্পূর্ণ সক্রিয় এবং ১০০% প্রস্তুত। আপনার কি কোনো কোড বা স্ক্রিপ্ট প্রয়োজন?";' >> /var/www/html/index.html && \
+    echo '      } else if (q.includes("run") || q.includes("চালাব") || q.includes("রান")) {' >> /var/www/html/index.html && \
+    echo '        reply = "টার্মিনালে ব্যাকগ্রাউন্ডে কোড রান রাখতে এই কমান্ডটি দিন:";' >> /var/www/html/index.html && \
+    echo '        lang = "bash";' >> /var/www/html/index.html && \
+    echo '        code = "nohup python3 bot.py > bot.log 2>&1 &";' >> /var/www/html/index.html && \
+    echo '      } else {' >> /var/www/html/index.html && \
+    echo '        reply = \"আমি আপনার বার্তা বুঝতে পেরেছি: \\\"\" + query + \"\\\"। ফাইল সংরক্ষণ করতে /admin এবং পাইথন বা ব্যাশ স্ক্রিপ্ট চালাতে /terminal ব্যবহার করুন।\";' >> /var/www/html/index.html && \
+    echo '      }' >> /var/www/html/index.html && \
+    echo '      renderBot(reply, code, lang);' >> /var/www/html/index.html && \
+    echo '    }' >> /var/www/html/index.html && \
+    echo '    function renderBot(text, code, lang) {' >> /var/www/html/index.html && \
+    echo '      const div = document.createElement("div"); div.className = "msg bot";' >> /var/www/html/index.html && \
+    echo '      let h = `<div class="text">${text}</div>`;' >> /var/www/html/index.html && \
+    echo '      if (code) {' >> /var/www/html/index.html && \
+    echo '        h += `<div class="code-block"><div class="code-head"><span>${lang}</span><button class="copy-btn" onclick="copySnippet(this)">কপি কোড</button></div><pre><code>${escapeHtml(code)}</code></pre></div>`;' >> /var/www/html/index.html && \
+    echo '      }' >> /var/www/html/index.html && \
+    echo '      h += `<div class="actions-row"><button class="act-btn" onclick="speakMsg(this)">🔊 শুনুন</button><button class="act-btn" onclick="copyMsg(this)">📋 কপি</button></div>`;' >> /var/www/html/index.html && \
+    echo '      div.innerHTML = h; box.appendChild(div); box.scrollTop = box.scrollHeight;' >> /var/www/html/index.html && \
+    echo '    }' >> /var/www/html/index.html && \
+    echo '    function escapeHtml(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }' >> /var/www/html/index.html && \
+    echo '    function copySnippet(btn) {' >> /var/www/html/index.html && \
+    echo '      const code = btn.closest(".code-block").querySelector("code").innerText;' >> /var/www/html/index.html && \
+    echo '      navigator.clipboard.writeText(code).then(() => { btn.innerText = "কপি হয়েছে!"; setTimeout(() => btn.innerText = "কপি কোড", 2000); });' >> /var/www/html/index.html && \
+    echo '    }' >> /var/www/html/index.html && \
+    echo '    function copyMsg(btn) {' >> /var/www/html/index.html && \
+    echo '      const txt = btn.closest(".msg").querySelector(".text").innerText;' >> /var/www/html/index.html && \
+    echo '      navigator.clipboard.writeText(txt).then(() => { btn.innerText = "কপি হয়েছে!"; setTimeout(() => btn.innerText = "📋 কপি", 2000); });' >> /var/www/html/index.html && \
+    echo '    }' >> /var/www/html/index.html && \
+    echo '    function speakMsg(btn) {' >> /var/www/html/index.html && \
+    echo '      if (!("speechSynthesis" in window)) { alert("আপনার ব্রাউজারে স্পিচ সিন্থেসিস সমর্থন নেই"); return; }' >> /var/www/html/index.html && \
+    echo '      window.speechSynthesis.cancel();' >> /var/www/html/index.html && \
+    echo '      const txt = btn.closest(".msg").querySelector(".text").innerText;' >> /var/www/html/index.html && \
+    echo '      const utter = new SpeechSynthesisUtterance(txt);' >> /var/www/html/index.html && \
+    echo '      utter.lang = "bn-BD";' >> /var/www/html/index.html && \
+    echo '      window.speechSynthesis.speak(utter);' >> /var/www/html/index.html && \
     echo '    }' >> /var/www/html/index.html && \
     echo '  </script>' >> /var/www/html/index.html && \
     echo '</body>' >> /var/www/html/index.html && \
     echo '</html>' >> /var/www/html/index.html
 
-# ৮. রেলওয়ে ডাইনামিক পোর্ট ও সার্ভিস রানার (entrypoint.sh) তৈরি
+# ৮. রেলওয়ে পোর্ট এবং সার্ভিস রানার স্ক্রিপ্ট (entrypoint.sh)
 RUN echo '#!/bin/bash' > /entrypoint.sh && \
     echo 'PORT="${PORT:-8080}"' >> /entrypoint.sh && \
     echo 'sed -i "s/__PORT__/$PORT/g" /etc/nginx/sites-available/default' >> /entrypoint.sh && \
@@ -189,7 +210,7 @@ RUN echo '#!/bin/bash' > /entrypoint.sh && \
     echo 'exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf' >> /entrypoint.sh && \
     chmod +x /entrypoint.sh
 
-# পারমিশন নিশ্চিতকরণ
+# ফাইল পারমিশন নিশ্চিতকরণ
 RUN chown -R www-data:www-data /var/www/html && chmod -R 775 /var/www/html
 
 EXPOSE 8080
