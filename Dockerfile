@@ -2,18 +2,19 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV RESOLUTION=1280x720
-ENV BRAND_NAME="DRX-TM OS"
+ENV BRAND_NAME="DRX OS"
 ENV MODEL_NAME="llama3.2:1b"
 
-# 1. PPA setup for native Firefox (without Snap) ebong basic tools
+# ১. সিস্টেম আপডেট, নেটিভ ফায়ারফক্স (Snap ছাড়া) ও প্রয়োজনীয় প্যাকেজ ইনস্টল
 RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
+    gnupg \
     wget \
     zstd \
     curl \
     git \
     ca-certificates \
-    imagemagick \
+    python3 \
     && add-apt-repository -y ppa:mozillateam/ppa \
     && echo 'Package: *' > /etc/apt/preferences.d/mozilla-firefox \
     && echo 'Pin: release o=LP-PPA-mozillateam' >> /etc/apt/preferences.d/mozilla-firefox \
@@ -34,29 +35,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nano \
     tmux \
     net-tools \
-    python3 \
+    && update-alternatives --install /usr/bin/x-www-browser x-www-browser /usr/bin/firefox 100 \
+    && update-alternatives --set x-www-browser /usr/bin/firefox \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Local LLaMA Engine (Ollama) install ebong Build-time Model Pre-pull
-RUN curl -fsSL https://ollama.com/install.sh | sh && \
-    (ollama serve > /dev/null 2>&1 &) && \
-    sleep 5 && \
-    ollama pull llama3.2:1b && \
-    pkill ollama
+# ২. লোকাল LLaMA ইঞ্জিন (Ollama) ইনস্টল
+RUN curl -fsSL https://ollama.com/install.sh | sh
 
-# 3. Image Banner er poriborte Cyberpunk Text Logo Wallpaper generate
+# ৩. GitHub থেকে আপনার দেওয়া মূল ব্যানার ছবি ব্যাকগ্রাউন্ড হিসেবে ডাউনলোড
 RUN mkdir -p /usr/share/backgrounds/xfce /root/.config/xfce4/xfconf/xfce-perchannel-xml /etc/xdg/xfce4/xfconf/xfce-perchannel-xml && \
-    convert -size 1280x720 xc:#0d1117 \
-    -gravity center \
-    -fill '#00ffcc' -font DejaVu-Sans-Bold -pointsize 56 -annotate -50 'DRX-TM CORE OS' \
-    -fill '#ff0055' -font DejaVu-Sans-Bold -pointsize 24 -annotate +20 '[ OFFLINE AI & CYBER TERMINAL ]' \
-    -fill '#8892b0' -font DejaVu-Sans -pointsize 18 -annotate +80 'Type "drx" in terminal to chat with LLaMA 3.2' \
-    /usr/share/backgrounds/custom_bg.png && \
+    curl -fsSL "https://raw.githubusercontent.com/adminnirobvai1-ux/drx/refs/heads/main/1789570402521.png" -o /usr/share/backgrounds/custom_bg.png && \
     cp /usr/share/backgrounds/custom_bg.png /usr/share/backgrounds/xfce/xfce-blue.jpg && \
     cp /usr/share/backgrounds/custom_bg.png /usr/share/backgrounds/xfce/xfce-stripes.png && \
     cp /usr/share/backgrounds/custom_bg.png /usr/share/backgrounds/xfce/xfce-teal.jpg
 
-# XFCE Dark Theme Config
+# XFCE ডার্ক থিম কনফিগারেশন
 RUN echo '<?xml version="1.0" encoding="UTF-8"?>\n\
 <channel name="xsettings" version="1.0">\n\
   <property name="Net" type="empty">\n\
@@ -72,7 +65,7 @@ RUN echo '<?xml version="1.0" encoding="UTF-8"?>\n\
   </property>\n\
 </channel>' > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml
 
-# 4. DRX-TM Terminal AI Script
+# ৪. DRX টার্মিনাল এআই স্ক্রিপ্ট (ভারী ব্যানার ছাড়া শুধু সাধারণ টেক্সট লোগো)
 RUN cat << 'EOF' > /usr/local/bin/drx
 #!/usr/bin/env python3
 import os
@@ -90,47 +83,59 @@ YELLOW = "\033[1;33m"
 BOLD = "\033[1m"
 RESET = "\033[0m"
 
-BANNER = f"""{RED}
-  ██████╗  ██████╗ ██╗  ██╗       ████████╗███╗   ███╗
-  ██╔══██╗██╔══██╗╚██╗██╔╝       ╚══██╔══╝████╗ ████║
-  ██║  ██║██████╔╝ ╚███╔╝  █████╗   ██║   ██╔████╔██║
-  ██║  ██║██╔══██╗ ██╔██╗  ╚════╝   ██║   ██║╚██╔╝██║
-  ██████╔╝██║  ██║██╔╝ ██╗          ██║   ██║ ╚═╝ ██║
-  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝          ╚═╝   ╚═╝     ╚═╝{RESET}
-{CYAN}======================================================{RESET}
-{YELLOW}   System: DRX-TM Core AI Engine | Model: LLaMA 3.2 (1B){RESET}
-{YELLOW}   Owner / Developer: নাইম (Naim){RESET}
-{CYAN}======================================================{RESET}
-{GREEN}Type your prompt, request HTML/web code, or say hi!{RESET}
-Type {RED}'exit'{RESET} or {RED}'quit'{RESET} to return to terminal.\n
+# সাধারণ টেক্সট হেডার (কোনো ভারী আর্ট ব্যানার ছাড়া)
+BANNER = f"""
+{RED}{BOLD}>>> DRX AI <<<{RESET}
+{CYAN}--------------------------------------------------{RESET}
+{YELLOW}System: DRX Offline Engine | Model: LLaMA 3.2{RESET}
+{YELLOW}Owner / Developer: নাইম (Naim){RESET}
+{CYAN}--------------------------------------------------{RESET}
+{GREEN}Type your prompt, ask for HTML code, or say 'hi'!{RESET}
+Type {RED}'exit'{RESET} to return to terminal.\n
 """
 
 print(BANNER)
 
-SYSTEM_PROMPT = (
-    "You are DRX-TM, a smart and helpful offline AI assistant. "
-    "Your creator and owner is নাইম (Naim). Always acknowledge নাইম (Naim) as your boss with utmost respect. "
-    "When greeted with 'hi' or 'hello', reply politely, introducing yourself and offering help. "
-    "You are an expert coder. When asked for HTML or code, provide complete, clean, and modern code directly."
-)
-
-OLLAMA_URL = "http://127.0.0.1:11434/api/chat"
-
+# Ollama সার্ভিস প্রস্তুত কি না যাচাই
 try:
     urllib.request.urlopen("http://127.0.0.1:11434", timeout=3)
 except Exception:
-    print(f"{RED}[!] Ollama service is initializing. Please wait a few seconds and run 'drx' again.{RESET}")
+    print(f"{RED}[!] Ollama ব্যাকগ্রাউন্ডে শুরু হচ্ছে। ৫ সেকেন্ড পর আবার 'drx' লিখুন।{RESET}\n")
     sys.exit(0)
 
+# মডেল ডাউনলোড নিশ্চিত করা (500 Error রোধে)
+def ensure_model():
+    try:
+        req = urllib.request.Request("http://127.0.0.1:11434/api/tags")
+        with urllib.request.urlopen(req, timeout=5) as res:
+            data = json.loads(res.read().decode())
+            models = [m.get("name", "") for m in data.get("models", [])]
+            return any("llama3.2:1b" in m for m in models)
+    except Exception:
+        return False
+
+if not ensure_model():
+    print(f"{YELLOW}[*] AI মডেল প্রথমবার প্রস্তুত হচ্ছে, দয়া করে একটু অপেক্ষা করুন...{RESET}")
+    os.system("ollama pull llama3.2:1b")
+    print(f"{GREEN}[✓] মডেল প্রস্তুত!{RESET}\n")
+
+SYSTEM_PROMPT = (
+    "You are DRX, a fast and smart offline AI assistant running on LLaMA 3.2. "
+    "Your creator, boss, and developer is নাইম (Naim). Always acknowledge নাইম with respect if asked. "
+    "When someone says 'hi' or greets you, greet them warmly and ask how you can help. "
+    "You are an expert coder. When asked for HTML or programming code, always provide clean, functional, and complete code."
+)
+
+OLLAMA_URL = "http://127.0.0.1:11434/api/chat"
 history = [{"role": "system", "content": SYSTEM_PROMPT}]
 
 while True:
     try:
-        user_input = input(f"{RED}DRX-TM{RESET} > ").strip()
+        user_input = input(f"{RED}DRX{RESET} > ").strip()
         if not user_input:
             continue
         if user_input.lower() in ['exit', 'quit', 'q']:
-            print(f"\n{YELLOW}[*] Exiting DRX-TM...{RESET}\n")
+            print(f"\n{YELLOW}[*] DRX বন্ধ করা হলো।{RESET}\n")
             break
 
         history.append({"role": "user", "content": user_input})
@@ -147,7 +152,7 @@ while True:
             headers={'Content-Type': 'application/json'}
         )
 
-        print(f"\n{GREEN}[DRX-TM]{RESET}: ", end="", flush=True)
+        print(f"\n{GREEN}[DRX]{RESET}: ", end="", flush=True)
         assistant_response = ""
 
         with urllib.request.urlopen(req) as response:
@@ -162,22 +167,22 @@ while True:
         history.append({"role": "assistant", "content": assistant_response})
 
     except KeyboardInterrupt:
-        print(f"\n\n{YELLOW}[*] Session closed.{RESET}\n")
+        print(f"\n\n{YELLOW}[*] সেশন সমাপ্ত।{RESET}\n")
         break
     except urllib.error.HTTPError as e:
-        err_msg = e.read().decode('utf-8', errors='ignore')
-        print(f"\n{RED}[Error {e.code}]: {err_msg}{RESET}\n")
+        err = e.read().decode('utf-8', errors='ignore')
+        print(f"\n{RED}[Error {e.code}]: {err}{RESET}\n")
     except Exception as e:
         print(f"\n{RED}[Error]: {e}{RESET}\n")
 EOF
 
 RUN chmod +x /usr/local/bin/drx
 
-# 5. Terminal Banner
-RUN echo 'export PS1="\[\e[1;31m\][DRX-TM]\[\e[0m\]:\w# "' >> /root/.bashrc && \
-    echo 'echo -e "\n============================================\n   Welcome to DRX-TM Cyber Desktop\n   Type \"drx\" to launch Offline AI\n============================================\n"' >> /root/.bashrc
+# ৫. টার্মিনাল প্রম্পট ও টেক্সট ব্যানার
+RUN echo 'export PS1="\[\e[1;31m\][DRX]\[\e[0m\]:\w# "' >> /root/.bashrc && \
+    echo 'echo -e "\n============================================\n   Welcome to DRX Desktop\n   Type \"drx\" to launch Offline AI\n============================================\n"' >> /root/.bashrc
 
-# 6. VNC Configuration
+# ৬. VNC ও ডেস্কটপ প্যানেল কনফিগারেশন
 RUN mkdir -p /root/.vnc && \
     echo "securitytypes=None" > /root/.vnc/config && \
     echo '#!/bin/bash\n\
@@ -189,27 +194,28 @@ export DISPLAY=:1\n\
   for p in $(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep "last-image"); do \n\
     xfconf-query -c xfce4-desktop -p "$p" -s /usr/share/backgrounds/custom_bg.png 2>/dev/null \n\
   done \n\
-  xfconf-query -c xfce4-panel -p /plugins/plugin-1/button-title -s "DRX-TM" --create -t string 2>/dev/null \n\
+  xfconf-query -c xfce4-panel -p /plugins/plugin-1/button-title -s "DRX" --create -t string 2>/dev/null \n\
   xfconf-query -c xfce4-panel -p /plugins/plugin-1/show-button-title -s true --create -t bool 2>/dev/null \n\
 ) &\n\
 exec startxfce4' > /root/.vnc/xstartup && \
     chmod +x /root/.vnc/xstartup && \
     ln -sf /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 
-# 7. noVNC Styling
-RUN sed -i 's/<title>noVNC<\/title>/<title>DRX-TM OS<\/title>/g' /usr/share/novnc/vnc.html && \
+# ৭. noVNC স্টাইলিং ও টাইটেল
+RUN sed -i 's/<title>noVNC<\/title>/<title>DRX OS<\/title>/g' /usr/share/novnc/vnc.html && \
     sed -i "s/'resize', 'off'/'resize', 'scale'/g" /usr/share/novnc/app/ui.js 2>/dev/null || true
 
-# 8. Ports Expose
+# ৮. পোর্ট এক্সপোজ
 EXPOSE 8080 8081 8082 8083 8084 8085 8086 8087 8088 8089 6080 6081 6082 6083 6084 6085 6086 6087 6088 6089
 
-# 9. Entrypoint Script (Ollama readiness check er sathe)
+# ৯. এন্ট্রি পয়েন্ট স্ক্রিপ্ট
 RUN echo '#!/bin/bash\n\
 rm -rf /tmp/.X*-lock /tmp/.X11-unix/X*\n\
 ollama serve > /var/log/ollama.log 2>&1 &\n\
-until curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; do\n\
-  sleep 1\n\
-done\n\
+( \n\
+  until curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; do sleep 1; done\n\
+  ollama pull llama3.2:1b > /dev/null 2>&1 \n\
+) &\n\
 vncserver :1 -geometry ${RESOLUTION} -depth 24 -SecurityTypes None\n\
 for p in 8081 8082 8083 8084 8085 8086 8087 8088 8089 6080 6081 6082 6083 6084 6085 6086 6087 6088 6089; do\n\
   socat TCP-LISTEN:$p,fork,reuseaddr TCP:localhost:8080 2>/dev/null &\n\
